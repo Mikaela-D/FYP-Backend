@@ -1,3 +1,5 @@
+// C:\Users\Mikaela\FYP-Backend\routes\index.js
+
 let express = require("express");
 let router = express.Router();
 
@@ -9,13 +11,17 @@ oldMong.connect("mongodb://127.0.0.1:27017/db");
 
 let meetingSchema = new Schema(
   {
-    meetingId: String,
+    meetingId: { type: String, unique: true },
     title: String,
-    image: String,
-    price: Number,
+    customerTitle: String,
+    customerName: String,
+    customerPhone: String,
+    customerEmail: String,
     category: String,
+    priority: String,
+    status: String,
     description: String,
-    quantity: Number,
+    image: String,
   },
   { collection: "meetings" }
 );
