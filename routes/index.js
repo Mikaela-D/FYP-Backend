@@ -1,15 +1,18 @@
 let express = require("express");
 let router = express.Router();
 
-let Mongoose = require("mongoose").Mongoose;
-let Schema = require("mongoose").Schema;
+let mongoose = require("mongoose");
+let Schema = mongoose.Schema;
 
-let oldMong = new Mongoose();
-oldMong.connect("mongodb://127.0.0.1:27017/db");
+// Use the default mongoose instance
+mongoose.connect("mongodb://127.0.0.1:27017/db", {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+});
 
 let clientSchema = new Schema(
   {
-    clientId: { type: String, unique: true },
+    clientId: { type: String, default: () => new mongoose.Types.ObjectId().toString() }, // Auto-generate if not provided
     customerName: String,
     customerPhone: String,
     customerEmail: { type: String, unique: true },
@@ -21,7 +24,7 @@ const meetingSchema = new Schema(
   {
     meetingId: { type: String, unique: true },
     title: String,
-    clientId: { type: Schema.Types.ObjectId, ref: "clients" }, // Changed from String to ObjectId
+    clientId: { type: Schema.Types.ObjectId, ref: "clients" },
     category: String,
     priority: String,
     status: String,
@@ -31,17 +34,16 @@ const meetingSchema = new Schema(
   { collection: "meetings" }
 );
 
-let Clients = oldMong.model("clients", clientSchema);
-let Meetings = oldMong.model("meetings", meetingSchema);
+let Clients = mongoose.model("clients", clientSchema);
+let Meetings = mongoose.model("meetings", meetingSchema);
 
 // Admin server page
 router.get("/", async function (req, res, next) {
   res.render("index");
 });
 
-// Crud
-// Create Meeting with Client Reference
-router.post("/createMeeting", async function (req, res, next) {
+// Create Meeting
+router.post("/createMeeting", async function (req, res) {
   let retVal = { response: "fail" };
   let { customerName, customerPhone, customerEmail, ...meetingData } = req.body;
 
@@ -50,6 +52,7 @@ router.post("/createMeeting", async function (req, res, next) {
 
     if (!client) {
       client = await Clients.create({
+        clientId: new mongoose.Types.ObjectId().toString(), // Explicitly setting clientId
         customerName,
         customerPhone,
         customerEmail,
@@ -58,31 +61,24 @@ router.post("/createMeeting", async function (req, res, next) {
 
     let meeting = await Meetings.create({
       ...meetingData,
-      clientId: client._id, // Ensure clientId is stored as an ObjectId
+      clientId: client._id, // Ensuring ObjectId reference
     });
 
-    if (meeting) {
-      retVal = { response: "success" };
-    }
+    retVal = { response: "success", meetingId: meeting._id };
   } catch (err) {
     console.error("Error creating meeting:", err);
+    retVal.error = err.message;
   }
 
   res.json(retVal);
 });
 
 // cRud   Should use GET . . . we'll fix this is Cloud next term
-// Retrieve Meetings with Client Details
-router.post("/readMeeting", async function (req, res, next) {
+// Retrieve Meetings
+router.post("/readMeeting", async function (req, res) {
   try {
-    let data;
-    if (req.body.cmd === "all") {
-      data = await Meetings.find().populate("clientId").lean();
-    } else {
-      data = await Meetings.findOne({ _id: req.body._id }).populate("clientId").lean();
-    }
-
-    // Ensure customer details are properly extracted
+    let data = req.body.cmd === "all" ? await Meetings.find().populate("clientId").lean() : await Meetings.findOne({ _id: req.body._id }).populate("clientId").lean();
+// Ensure customer details are properly extracted
     if (data) {
       if (Array.isArray(data)) {
         data = data.map(meeting => ({
@@ -101,69 +97,43 @@ router.post("/readMeeting", async function (req, res, next) {
     res.json({ meetings: data });
   } catch (error) {
     console.error("Error retrieving meetings:", error);
-    res.json({ meetings: [] });
+    res.json({ meetings: [], error: error.message });
   }
 });
 
 // crUd   Should use PUT . . . we'll fix this is Cloud next term
 // Update Meeting
-router.post("/updateMeeting", async function (req, res, next) {
-  let retVal = { response: "fail" };
-  await Meetings.findOneAndUpdate(
-    { _id: req.body._id },
-    req.body,
-    function (err) {
-      if (!err) {
-        retVal = { response: "success" };
-      }
-    }
-  );
-  res.json(retVal);
+router.post("/updateMeeting", async function (req, res) {
+  try {
+    await Meetings.findOneAndUpdate({ _id: req.body._id }, req.body);
+    res.json({ response: "success" });
+  } catch (err) {
+    console.error("Error updating meeting:", err);
+    res.json({ response: "fail", error: err.message });
+  }
 });
 
 // cruD   Should use DELETE . . . we'll fix this is Cloud next term
 // Delete Meeting
-router.post("/deleteMeeting", async function (req, res, next) {
-  let retVal = { response: "fail" };
-  await Meetings.deleteOne({ _id: req.body._id }, function (err) {
-    if (!err) {
-      retVal = { response: "success" };
-    }
-  });
-  res.json(retVal);
+router.post("/deleteMeeting", async function (req, res) {
+  try {
+    await Meetings.deleteOne({ _id: req.body._id });
+    res.json({ response: "success" });
+  } catch (err) {
+    console.error("Error deleting meeting:", err);
+    res.json({ response: "fail", error: err.message });
+  }
 });
 
-router.post("/getMeetings", async function (req, res, next) {
-  const meetings = await getMeetings();
-  res.json(meetings);
+// Save Meeting
+router.post("/saveMeeting", async function (req, res) {
+  try {
+    let meeting = await Meetings.create(req.body);
+    res.json({ saveMeetingResponse: "success", meetingId: meeting._id });
+  } catch (err) {
+    console.error("Could not insert new meeting:", err);
+    res.json({ saveMeetingResponse: "fail", error: err.message });
+  }
 });
-
-async function getMeetings() {
-  let data = await Meetings.find().populate("clientId").lean();
-  // Map the data to include customer details in the response
-  data = data.map(meeting => ({
-    ...meeting,
-    customerName: meeting.clientId?.customerName || "N/A",
-    customerPhone: meeting.clientId?.customerPhone || "N/A",
-    customerEmail: meeting.clientId?.customerEmail || "N/A"
-  }));
-  return { meetings: data };
-}
-
-router.post("/saveMeeting", async function (req, res, next) {
-  const meetings = await saveMeeting(req.body);
-  res.json(meetings);
-});
-
-async function saveMeeting(theMeeting) {
-  console.log("theMeeting: " + theMeeting);
-  await Meetings.create(theMeeting, function (err) {
-    if (err) {
-      console.log("Could not insert new meeting");
-      return { saveMeetingResponse: "fail" };
-    }
-  });
-  return { saveMeetingResponse: "success" };
-}
 
 module.exports = router;
