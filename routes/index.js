@@ -1,5 +1,3 @@
-// C:\Users\Mikaela\FYP-Backend\routes\index.js
-
 let express = require("express");
 let router = express.Router();
 
@@ -19,11 +17,11 @@ let clientSchema = new Schema(
   { collection: "clients" }
 );
 
-let meetingSchema = new Schema(
+const meetingSchema = new Schema(
   {
     meetingId: { type: String, unique: true },
     title: String,
-    clientId: { type: String, ref: "clients" }, // Changed to store clientId reference
+    clientId: { type: Schema.Types.ObjectId, ref: "clients" }, // Changed from String to ObjectId
     category: String,
     priority: String,
     status: String,
@@ -48,18 +46,20 @@ router.post("/createMeeting", async function (req, res, next) {
   let { customerName, customerPhone, customerEmail, ...meetingData } = req.body;
 
   try {
-    let client = await Clients.findOne({ customerEmail }).lean();
+    let client = await Clients.findOne({ customerEmail });
 
     if (!client) {
       client = await Clients.create({
-        clientId: new Mongoose().Types.ObjectId().toString(),
         customerName,
         customerPhone,
         customerEmail,
       });
     }
 
-    let meeting = await Meetings.create({ ...meetingData, clientId: client.clientId });
+    let meeting = await Meetings.create({
+      ...meetingData,
+      clientId: client._id, // Ensure clientId is stored as an ObjectId
+    });
 
     if (meeting) {
       retVal = { response: "success" };
@@ -74,13 +74,35 @@ router.post("/createMeeting", async function (req, res, next) {
 // cRud   Should use GET . . . we'll fix this is Cloud next term
 // Retrieve Meetings with Client Details
 router.post("/readMeeting", async function (req, res, next) {
-  let data;
-  if (req.body.cmd == "all") {
-    data = await Meetings.find().populate("clientId").lean();
-  } else {
-    data = await Meetings.find({ _id: req.body._id }).populate("clientId").lean();
+  try {
+    let data;
+    if (req.body.cmd === "all") {
+      data = await Meetings.find().populate("clientId").lean();
+    } else {
+      data = await Meetings.findOne({ _id: req.body._id }).populate("clientId").lean();
+    }
+
+    // Ensure customer details are properly extracted
+    if (data) {
+      if (Array.isArray(data)) {
+        data = data.map(meeting => ({
+          ...meeting,
+          customerName: meeting.clientId?.customerName || "N/A",
+          customerPhone: meeting.clientId?.customerPhone || "N/A",
+          customerEmail: meeting.clientId?.customerEmail || "N/A",
+        }));
+      } else {
+        data.customerName = data.clientId?.customerName || "N/A";
+        data.customerPhone = data.clientId?.customerPhone || "N/A";
+        data.customerEmail = data.clientId?.customerEmail || "N/A";
+      }
+    }
+
+    res.json({ meetings: data });
+  } catch (error) {
+    console.error("Error retrieving meetings:", error);
+    res.json({ meetings: [] });
   }
-  res.json({ meetings: data });
 });
 
 // crUd   Should use PUT . . . we'll fix this is Cloud next term
@@ -90,7 +112,7 @@ router.post("/updateMeeting", async function (req, res, next) {
   await Meetings.findOneAndUpdate(
     { _id: req.body._id },
     req.body,
-    function (err, res) {
+    function (err) {
       if (!err) {
         retVal = { response: "success" };
       }
@@ -103,7 +125,7 @@ router.post("/updateMeeting", async function (req, res, next) {
 // Delete Meeting
 router.post("/deleteMeeting", async function (req, res, next) {
   let retVal = { response: "fail" };
-  await Meetings.deleteOne({ _id: req.body._id }, function (err, res) {
+  await Meetings.deleteOne({ _id: req.body._id }, function (err) {
     if (!err) {
       retVal = { response: "success" };
     }
@@ -117,7 +139,14 @@ router.post("/getMeetings", async function (req, res, next) {
 });
 
 async function getMeetings() {
-  data = await Meetings.find().populate("clientId").lean();
+  let data = await Meetings.find().populate("clientId").lean();
+  // Map the data to include customer details in the response
+  data = data.map(meeting => ({
+    ...meeting,
+    customerName: meeting.clientId?.customerName || "N/A",
+    customerPhone: meeting.clientId?.customerPhone || "N/A",
+    customerEmail: meeting.clientId?.customerEmail || "N/A"
+  }));
   return { meetings: data };
 }
 
@@ -128,7 +157,7 @@ router.post("/saveMeeting", async function (req, res, next) {
 
 async function saveMeeting(theMeeting) {
   console.log("theMeeting: " + theMeeting);
-  await Meetings.create(theMeeting, function (err, res) {
+  await Meetings.create(theMeeting, function (err) {
     if (err) {
       console.log("Could not insert new meeting");
       return { saveMeetingResponse: "fail" };
