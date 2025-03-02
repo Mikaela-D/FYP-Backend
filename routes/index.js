@@ -196,7 +196,7 @@ router.put("/api/tickets/:id/assign", async (req, res) => {
     let { agentId } = req.body;
     let ticketId = req.params.id;
 
-    // Validate ObjectId format
+    // Validate MongoDB ObjectId
     if (!mongoose.Types.ObjectId.isValid(ticketId) || ticketId.length !== 24) {
       console.error("Invalid ticketId:", ticketId);
       return res.status(400).json({ error: "Invalid ticketId format" });
