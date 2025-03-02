@@ -191,17 +191,39 @@ router.put("/api/tickets/:id/assign", async (req, res) => {
     "to ticket:",
     req.params.id
   );
+
   try {
-    const { agentId } = req.body;
-    if (!mongoose.Types.ObjectId.isValid(agentId)) {
-      console.error("Invalid agent ID:", agentId);
-      return res.status(400).json({ error: "Invalid agent ID" });
+    let { agentId } = req.body;
+    let ticketId = req.params.id;
+
+    // Validate ObjectId format
+    if (!mongoose.Types.ObjectId.isValid(ticketId) || ticketId.length !== 24) {
+      console.error("Invalid ticketId:", ticketId);
+      return res.status(400).json({ error: "Invalid ticketId format" });
     }
-    const result = await Tickets.findByIdAndUpdate(req.params.id, {
-      assignedTo: agentId,
-    });
+
+    if (!mongoose.Types.ObjectId.isValid(agentId) || agentId.length !== 24) {
+      console.error("Invalid agentId:", agentId);
+      return res.status(400).json({ error: "Invalid agentId format" });
+    }
+
+    // Convert to ObjectId before querying MongoDB
+    ticketId = new mongoose.Types.ObjectId(ticketId);
+    agentId = new mongoose.Types.ObjectId(agentId);
+
+    const result = await Tickets.findByIdAndUpdate(
+      ticketId,
+      { assignedTo: agentId },
+      { new: true }
+    );
+
     console.log("Ticket update result:", result);
-    res.json({ success: true });
+
+    if (!result) {
+      return res.status(404).json({ error: "Ticket not found" });
+    }
+
+    res.json({ success: true, ticket: result });
   } catch (err) {
     console.error("Error assigning ticket:", err);
     res.status(500).json({ error: err.message });
