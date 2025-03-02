@@ -185,14 +185,25 @@ router.get("/agents", async (req, res) => {
 });
 
 router.put("/api/tickets/:id/assign", async (req, res) => {
+  console.log(
+    "Received request to assign agent:",
+    req.body.agentId,
+    "to ticket:",
+    req.params.id
+  );
   try {
     const { agentId } = req.body;
     if (!mongoose.Types.ObjectId.isValid(agentId)) {
+      console.error("Invalid agent ID:", agentId);
       return res.status(400).json({ error: "Invalid agent ID" });
     }
-    await Tickets.findByIdAndUpdate(req.params.id, { assignedTo: agentId });
+    const result = await Tickets.findByIdAndUpdate(req.params.id, {
+      assignedTo: agentId,
+    });
+    console.log("Ticket update result:", result);
     res.json({ success: true });
   } catch (err) {
+    console.error("Error assigning ticket:", err);
     res.status(500).json({ error: err.message });
   }
 });
