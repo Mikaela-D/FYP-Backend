@@ -162,23 +162,36 @@ router.post("/saveTicket", async function (req, res) {
   }
 });
 
-// Assign Agent to Ticket
-router.put("/tickets/:id/assign", async (req, res) => {
-  try {
-    const { agentId } = req.body;
-    await Tickets.findByIdAndUpdate(req.params.id, { assignedTo: agentId });
-    res.json({ success: true });
-  } catch (err) {
-    console.error("Error assigning ticket:", err);
-    res.status(500).json({ error: err.message });
-  }
-});
+// // Assign Agent to Ticket
+// router.put("/tickets/:id/assign", async (req, res) => {
+//   try {
+//     const { agentId } = req.body;
+//     await Tickets.findByIdAndUpdate(req.params.id, { assignedTo: agentId });
+//     res.json({ success: true });
+//   } catch (err) {
+//     console.error("Error assigning ticket:", err);
+//     res.status(500).json({ error: err.message });
+//   }
+// });
 
 // Fetch Agents
 router.get("/agents", async (req, res) => {
   try {
     const agents = await Agents.find();
     res.json(agents);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.put("/api/tickets/:id/assign", async (req, res) => {
+  try {
+    const { agentId } = req.body;
+    if (!mongoose.Types.ObjectId.isValid(agentId)) {
+      return res.status(400).json({ error: "Invalid agent ID" });
+    }
+    await Tickets.findByIdAndUpdate(req.params.id, { assignedTo: agentId });
+    res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
