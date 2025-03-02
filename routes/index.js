@@ -35,12 +35,22 @@ const ticketSchema = new Schema(
     status: String,
     description: String,
     image: String,
+    assignedTo: { type: Schema.Types.ObjectId, ref: "agents", default: null }, // New field for agent assignment
   },
   { collection: "tickets" }
 );
 
+// Define Agent Schema
+const agentSchema = new Schema(
+  {
+    name: { type: String, required: true, unique: true },
+  },
+  { collection: "agents" }
+);
+
 let Clients = mongoose.model("clients", clientSchema);
 let Tickets = mongoose.model("tickets", ticketSchema);
+let Agents = mongoose.model("agents", agentSchema);
 
 // Admin server page
 router.get("/", async function (req, res, next) {
@@ -84,9 +94,13 @@ router.post("/readTicket", async function (req, res) {
   try {
     let data =
       req.body.cmd === "all"
-        ? await Tickets.find().populate("clientId").lean()
+        ? await Tickets.find()
+            .populate("clientId")
+            .populate("assignedTo")
+            .lean()
         : await Tickets.findOne({ _id: req.body._id })
             .populate("clientId")
+            .populate("assignedTo")
             .lean();
     // Ensure customer details are properly extracted
     if (data) {
@@ -96,11 +110,13 @@ router.post("/readTicket", async function (req, res) {
           customerName: ticket.clientId?.customerName || "N/A",
           customerPhone: ticket.clientId?.customerPhone || "N/A",
           customerEmail: ticket.clientId?.customerEmail || "N/A",
+          assignedTo: ticket.assignedTo ? ticket.assignedTo.name : "Unassigned",
         }));
       } else {
         data.customerName = data.clientId?.customerName || "N/A";
         data.customerPhone = data.clientId?.customerPhone || "N/A";
         data.customerEmail = data.clientId?.customerEmail || "N/A";
+        data.assignedTo = data.assignedTo ? data.assignedTo.name : "Unassigned";
       }
     }
 
@@ -143,6 +159,28 @@ router.post("/saveTicket", async function (req, res) {
   } catch (err) {
     console.error("Could not insert new ticket:", err);
     res.json({ saveTicketResponse: "fail", error: err.message });
+  }
+});
+
+// Assign Agent to Ticket
+router.put("/tickets/:id/assign", async (req, res) => {
+  try {
+    const { agentId } = req.body;
+    await Tickets.findByIdAndUpdate(req.params.id, { assignedTo: agentId });
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Error assigning ticket:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Fetch Agents
+router.get("/agents", async (req, res) => {
+  try {
+    const agents = await Agents.find();
+    res.json(agents);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
