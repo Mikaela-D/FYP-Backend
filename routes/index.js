@@ -110,13 +110,17 @@ router.post("/readTicket", async function (req, res) {
           customerName: ticket.clientId?.customerName || "N/A",
           customerPhone: ticket.clientId?.customerPhone || "N/A",
           customerEmail: ticket.clientId?.customerEmail || "N/A",
-          assignedTo: ticket.assignedTo ? ticket.assignedTo.name : "Unassigned",
+          assignedTo: ticket.assignedTo
+            ? ticket.assignedTo._id.toString()
+            : "Unassigned",
         }));
       } else {
         data.customerName = data.clientId?.customerName || "N/A";
         data.customerPhone = data.clientId?.customerPhone || "N/A";
         data.customerEmail = data.clientId?.customerEmail || "N/A";
-        data.assignedTo = data.assignedTo ? data.assignedTo.name : "Unassigned";
+        data.assignedTo = data.assignedTo
+          ? data.assignedTo._id.toString()
+          : "Unassigned";
       }
     }
 
