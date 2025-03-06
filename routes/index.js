@@ -178,17 +178,8 @@ router.post("/saveTicket", async function (req, res) {
 //   }
 // });
 
-// Fetch Agents
-router.get("/agents", async (req, res) => {
-  try {
-    const agents = await Agents.find();
-    res.json(agents);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-router.put("/api/tickets/:id/assign", async (req, res) => {
+// Assign Agent to Ticket
+router.put("/tickets/:id/assign", async (req, res) => {
   console.log(
     "Received request to assign agent:",
     req.body.agentId,
@@ -230,6 +221,56 @@ router.put("/api/tickets/:id/assign", async (req, res) => {
     res.json({ success: true, ticket: result });
   } catch (err) {
     console.error("Error assigning ticket:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Fetch Agents
+router.get("/agents", async (req, res) => {
+  try {
+    const agents = await Agents.find();
+    res.json(agents);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Fetch Single Agent by Name (for 'Assign to Me')
+router.get("/agents/by-name/:name", async (req, res) => {
+  try {
+    const agent = await Agents.findOne({ name: req.params.name });
+    if (!agent) {
+      return res.status(404).json({ error: "Agent not found" });
+    }
+    res.json(agent);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Fetch Tickets by Agent Name
+router.get("/tickets/by-agent/:name", async (req, res) => {
+  try {
+    const agent = await Agents.findOne({ name: req.params.name });
+
+    if (!agent) {
+      return res.status(404).json({ error: "Agent not found" });
+    }
+
+    const tickets = await Tickets.find({ assignedTo: agent._id })
+      .populate("clientId")
+      .lean();
+
+    const formattedTickets = tickets.map((ticket) => ({
+      ...ticket,
+      customerName: ticket.clientId?.customerName || "N/A",
+      customerPhone: ticket.clientId?.customerPhone || "N/A",
+      customerEmail: ticket.clientId?.customerEmail || "N/A",
+    }));
+
+    res.json({ tickets: formattedTickets });
+  } catch (err) {
+    console.error("Error fetching tickets for agent:", err);
     res.status(500).json({ error: err.message });
   }
 });
