@@ -134,15 +134,26 @@ router.post("/readTicket", async function (req, res) {
 // crUd   Should use PUT . . . we'll fix this is Cloud next term
 // Update Ticket
 router.put("/updateTicket", async function (req, res) {
-  console.log("Updating ticket:", req.body); // Debugging line
+  console.log("Updating ticket:", req.body); // Debugging
 
-  if (!req.body._id) {
-    return res.status(400).json({ response: "fail", error: "Missing _id" });
+  if (!req.body._id || !mongoose.Types.ObjectId.isValid(req.body._id)) {
+    return res
+      .status(400)
+      .json({ response: "fail", error: "Invalid or missing _id" });
   }
 
   try {
-    await Tickets.findOneAndUpdate({ _id: req.body._id }, req.body);
-    res.json({ response: "success" });
+    const result = await Tickets.findByIdAndUpdate(req.body._id, req.body, {
+      new: true,
+    });
+
+    if (!result) {
+      return res
+        .status(404)
+        .json({ response: "fail", error: "Ticket not found" });
+    }
+
+    res.json({ response: "success", ticket: result });
   } catch (err) {
     console.error("Error updating ticket:", err);
     res.json({ response: "fail", error: err.message });
