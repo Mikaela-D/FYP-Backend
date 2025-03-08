@@ -133,7 +133,13 @@ router.post("/readTicket", async function (req, res) {
 
 // crUd   Should use PUT . . . we'll fix this is Cloud next term
 // Update Ticket
-router.post("/updateTicket", async function (req, res) {
+router.put("/updateTicket", async function (req, res) {
+  console.log("Updating ticket:", req.body); // Debugging line
+
+  if (!req.body._id) {
+    return res.status(400).json({ response: "fail", error: "Missing _id" });
+  }
+
   try {
     await Tickets.findOneAndUpdate({ _id: req.body._id }, req.body);
     res.json({ response: "success" });
