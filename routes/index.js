@@ -35,12 +35,22 @@ const ticketSchema = new Schema(
     status: String,
     description: String,
     image: String,
+    assignedTo: { type: Schema.Types.ObjectId, ref: "agents", default: null }, // New field for agent assignment
   },
   { collection: "tickets" }
 );
 
+// Define Agent Schema
+const agentSchema = new Schema(
+  {
+    name: { type: String, required: true, unique: true },
+  },
+  { collection: "agents" }
+);
+
 let Clients = mongoose.model("clients", clientSchema);
 let Tickets = mongoose.model("tickets", ticketSchema);
+let Agents = mongoose.model("agents", agentSchema);
 
 // Admin server page
 router.get("/", async function (req, res, next) {
@@ -84,9 +94,13 @@ router.post("/readTicket", async function (req, res) {
   try {
     let data =
       req.body.cmd === "all"
-        ? await Tickets.find().populate("clientId").lean()
+        ? await Tickets.find()
+            .populate("clientId")
+            .populate("assignedTo")
+            .lean()
         : await Tickets.findOne({ _id: req.body._id })
             .populate("clientId")
+            .populate("assignedTo")
             .lean();
     // Ensure customer details are properly extracted
     if (data) {
@@ -96,11 +110,17 @@ router.post("/readTicket", async function (req, res) {
           customerName: ticket.clientId?.customerName || "N/A",
           customerPhone: ticket.clientId?.customerPhone || "N/A",
           customerEmail: ticket.clientId?.customerEmail || "N/A",
+          assignedTo: ticket.assignedTo
+            ? ticket.assignedTo._id.toString()
+            : "Unassigned",
         }));
       } else {
         data.customerName = data.clientId?.customerName || "N/A";
         data.customerPhone = data.clientId?.customerPhone || "N/A";
         data.customerEmail = data.clientId?.customerEmail || "N/A";
+        data.assignedTo = data.assignedTo
+          ? data.assignedTo._id.toString()
+          : "Unassigned";
       }
     }
 
@@ -143,6 +163,115 @@ router.post("/saveTicket", async function (req, res) {
   } catch (err) {
     console.error("Could not insert new ticket:", err);
     res.json({ saveTicketResponse: "fail", error: err.message });
+  }
+});
+
+// // Assign Agent to Ticket
+// router.put("/tickets/:id/assign", async (req, res) => {
+//   try {
+//     const { agentId } = req.body;
+//     await Tickets.findByIdAndUpdate(req.params.id, { assignedTo: agentId });
+//     res.json({ success: true });
+//   } catch (err) {
+//     console.error("Error assigning ticket:", err);
+//     res.status(500).json({ error: err.message });
+//   }
+// });
+
+// Assign Agent to Ticket
+router.put("/tickets/:id/assign", async (req, res) => {
+  console.log(
+    "Received request to assign agent:",
+    req.body.agentId,
+    "to ticket:",
+    req.params.id
+  );
+
+  try {
+    let { agentId } = req.body;
+    let ticketId = req.params.id;
+
+    // Validate MongoDB ObjectId
+    if (!mongoose.Types.ObjectId.isValid(ticketId) || ticketId.length !== 24) {
+      console.error("Invalid ticketId:", ticketId);
+      return res.status(400).json({ error: "Invalid ticketId format" });
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(agentId) || agentId.length !== 24) {
+      console.error("Invalid agentId:", agentId);
+      return res.status(400).json({ error: "Invalid agentId format" });
+    }
+
+    // Convert to ObjectId before querying MongoDB
+    ticketId = new mongoose.Types.ObjectId(ticketId);
+    agentId = new mongoose.Types.ObjectId(agentId);
+
+    const result = await Tickets.findByIdAndUpdate(
+      ticketId,
+      { assignedTo: agentId },
+      { new: true }
+    );
+
+    console.log("Ticket update result:", result);
+
+    if (!result) {
+      return res.status(404).json({ error: "Ticket not found" });
+    }
+
+    res.json({ success: true, ticket: result });
+  } catch (err) {
+    console.error("Error assigning ticket:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Fetch Agents
+router.get("/agents", async (req, res) => {
+  try {
+    const agents = await Agents.find();
+    res.json(agents);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Fetch Single Agent by Name (for 'Assign to Me')
+router.get("/agents/by-name/:name", async (req, res) => {
+  try {
+    const agent = await Agents.findOne({ name: req.params.name });
+    if (!agent) {
+      return res.status(404).json({ error: "Agent not found" });
+    }
+    res.json(agent);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Fetch Tickets by Agent Name
+router.get("/tickets/by-agent/:name", async (req, res) => {
+  try {
+    const agent = await Agents.findOne({ name: req.params.name });
+
+    if (!agent) {
+      return res.status(404).json({ error: "Agent not found" });
+    }
+
+    const tickets = await Tickets.find({ assignedTo: agent._id })
+      .populate("clientId")
+      .lean();
+
+    const formattedTickets = tickets.map((ticket) => ({
+      ...ticket,
+      customerName: ticket.clientId?.customerName || "N/A",
+      customerPhone: ticket.clientId?.customerPhone || "N/A",
+      customerEmail: ticket.clientId?.customerEmail || "N/A",
+    }));
+
+    res.json({ tickets: formattedTickets });
+  } catch (err) {
+    console.error("Error fetching tickets for agent:", err);
+    res.status(500).json({ error: err.message });
   }
 });
 
