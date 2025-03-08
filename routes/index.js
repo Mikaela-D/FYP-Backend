@@ -166,18 +166,6 @@ router.post("/saveTicket", async function (req, res) {
   }
 });
 
-// // Assign Agent to Ticket
-// router.put("/tickets/:id/assign", async (req, res) => {
-//   try {
-//     const { agentId } = req.body;
-//     await Tickets.findByIdAndUpdate(req.params.id, { assignedTo: agentId });
-//     res.json({ success: true });
-//   } catch (err) {
-//     console.error("Error assigning ticket:", err);
-//     res.status(500).json({ error: err.message });
-//   }
-// });
-
 // Assign Agent to Ticket
 router.put("/tickets/:id/assign", async (req, res) => {
   console.log(
