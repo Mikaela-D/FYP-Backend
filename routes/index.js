@@ -133,10 +133,27 @@ router.post("/readTicket", async function (req, res) {
 
 // crUd   Should use PUT . . . we'll fix this is Cloud next term
 // Update Ticket
-router.post("/updateTicket", async function (req, res) {
+router.put("/updateTicket", async function (req, res) {
+  console.log("Updating ticket:", req.body); // Debugging
+
+  if (!req.body._id || !mongoose.Types.ObjectId.isValid(req.body._id)) {
+    return res
+      .status(400)
+      .json({ response: "fail", error: "Invalid or missing _id" });
+  }
+
   try {
-    await Tickets.findOneAndUpdate({ _id: req.body._id }, req.body);
-    res.json({ response: "success" });
+    const result = await Tickets.findByIdAndUpdate(req.body._id, req.body, {
+      new: true,
+    });
+
+    if (!result) {
+      return res
+        .status(404)
+        .json({ response: "fail", error: "Ticket not found" });
+    }
+
+    res.json({ response: "success", ticket: result });
   } catch (err) {
     console.error("Error updating ticket:", err);
     res.json({ response: "fail", error: err.message });
@@ -165,18 +182,6 @@ router.post("/saveTicket", async function (req, res) {
     res.json({ saveTicketResponse: "fail", error: err.message });
   }
 });
-
-// // Assign Agent to Ticket
-// router.put("/tickets/:id/assign", async (req, res) => {
-//   try {
-//     const { agentId } = req.body;
-//     await Tickets.findByIdAndUpdate(req.params.id, { assignedTo: agentId });
-//     res.json({ success: true });
-//   } catch (err) {
-//     console.error("Error assigning ticket:", err);
-//     res.status(500).json({ error: err.message });
-//   }
-// });
 
 // Assign Agent to Ticket
 router.put("/tickets/:id/assign", async (req, res) => {
