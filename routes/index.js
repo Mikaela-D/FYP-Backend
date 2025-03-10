@@ -300,7 +300,7 @@ router.post("/sendMessage", async (req, res) => {
 
   try {
     const response = await openai.createCompletion({
-      model: "text-curie-001", // Use a lower-cost model
+      model: "gpt-3.5-turbo",
       prompt: `You are a customer support agent. Respond to the following message: ${message}`,
       max_tokens: 150,
     });
