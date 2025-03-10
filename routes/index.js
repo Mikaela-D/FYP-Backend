@@ -1,7 +1,17 @@
 // C:\Users\Mikaela\FYP-Backend\routes\index.js
 
+require("dotenv").config();
 let express = require("express");
 let router = express.Router();
+const { Configuration, OpenAIApi } = require("openai");
+
+const configuration = new Configuration({
+  apiKey: process.env.OPENAI_API_KEY,
+});
+const openai = new OpenAIApi(configuration);
+
+let dailyUsage = 0;
+const DAILY_LIMIT = 10000;
 
 let mongoose = require("mongoose");
 let Schema = mongoose.Schema;
@@ -279,5 +289,31 @@ router.get("/tickets/by-agent/:name", async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+// Send Message and Get AI Response
+router.post("/sendMessage", async (req, res) => {
+  const { message } = req.body;
+
+  if (dailyUsage >= DAILY_LIMIT) {
+    return res.status(429).json({ error: "Daily usage limit reached" });
+  }
+
+  try {
+    const response = await openai.createCompletion({
+      model: "text-curie-001", // Use a lower-cost model
+      prompt: `You are a customer support agent. Respond to the following message: ${message}`,
+      max_tokens: 150,
+    });
+
+    const aiReply = response.data.choices[0].text.trim();
+    dailyUsage += response.data.usage.total_tokens; // Update daily usage
+    res.json({ reply: aiReply });
+  } catch (error) {
+    console.error("Error generating AI response:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+module.exports = router;
 
 module.exports = router;
