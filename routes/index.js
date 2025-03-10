@@ -12,7 +12,7 @@ const openai = new OpenAI({
 });
 
 let dailyUsage = 0;
-const DAILY_LIMIT = 20; // Limit AI interactions to 20 per day
+const DAILY_LIMIT = 100; // Limit AI interactions to 100 per day
 
 let mongoose = require("mongoose");
 let Schema = mongoose.Schema;
