@@ -293,23 +293,31 @@ router.get("/tickets/by-agent/:name", async (req, res) => {
 
 // Send Message and Get AI Response
 router.post("/sendMessage", async (req, res) => {
+  console.log("Received request:", req.body); // Debugging log
+
   const { message } = req.body;
+
+  if (!message) {
+    return res.status(400).json({ error: "Message is required" });
+  }
 
   if (dailyUsage >= DAILY_LIMIT) {
     return res.status(429).json({ error: "Daily usage limit reached" });
   }
 
   try {
-    const response = await openai.createCompletion({
-      model: "gpt-3.5-turbo", // Use the recommended model
-      prompt: `You are a customer support agent. Respond to the following message: ${message}`,
+    const response = await openai.chat.completions.create({
+      model: "gpt-3.5-turbo",
+      messages: [{ role: "user", content: message }],
       max_tokens: 150,
     });
 
-    const aiReply = response.data.choices[0].text.trim();
-    dailyUsage += response.data.usage.total_tokens; // Update daily usage
+    console.log("AI Response:", response); // Debugging log
 
-    console.log("AI Reply:", aiReply); // Log the AI reply
+    const aiReply =
+      response.choices[0]?.message?.content?.trim() || "No response";
+    dailyUsage += response.usage?.total_tokens || 0;
+
     res.json({ reply: aiReply });
   } catch (error) {
     console.error("Error generating AI response:", error);
