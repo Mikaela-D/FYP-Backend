@@ -300,13 +300,15 @@ router.post("/sendMessage", async (req, res) => {
 
   try {
     const response = await openai.createCompletion({
-      model: "gpt-3.5-turbo",
+      model: "gpt-3.5-turbo", // Use the recommended model
       prompt: `You are a customer support agent. Respond to the following message: ${message}`,
       max_tokens: 150,
     });
 
     const aiReply = response.data.choices[0].text.trim();
     dailyUsage += response.data.usage.total_tokens; // Update daily usage
+
+    console.log("AI Reply:", aiReply); // Log the AI reply
     res.json({ reply: aiReply });
   } catch (error) {
     console.error("Error generating AI response:", error);
