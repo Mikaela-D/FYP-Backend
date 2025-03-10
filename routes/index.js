@@ -3,12 +3,13 @@
 require("dotenv").config();
 let express = require("express");
 let router = express.Router();
-const { OpenAIApi, Configuration } = require("openai");
+const OpenAI = require("openai");
 
-const configuration = new Configuration({
+console.log("OpenAI module loaded successfully");
+
+const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
-const openai = new OpenAIApi(configuration);
 
 let dailyUsage = 0;
 const DAILY_LIMIT = 10000;
