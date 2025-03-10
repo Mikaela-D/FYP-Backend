@@ -308,7 +308,14 @@ router.post("/sendMessage", async (req, res) => {
   try {
     const response = await openai.chat.completions.create({
       model: "gpt-3.5-turbo",
-      messages: [{ role: "user", content: message }],
+      messages: [
+        {
+          role: "system",
+          content:
+            "You are a client needing product support for your mobile device and you are contacting an agent that will help you.",
+        },
+        { role: "user", content: message },
+      ],
       max_tokens: 150,
     });
 
