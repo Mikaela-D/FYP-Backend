@@ -8,6 +8,7 @@ var logger = require("morgan");
 var favicon = require("serve-favicon");
 
 var indexRouter = require("./routes/index");
+var ticketsRouter = require("./routes/tickets");
 var hbs = require("express-handlebars");
 
 var app = express();
@@ -35,6 +36,7 @@ app.use(cookieParser());
 app.use(express.static(path.join(__dirname, "public")));
 
 app.use("/", indexRouter);
+app.use("/tickets", ticketsRouter);
 
 // catch 404 and forward to error handler
 app.use(function (req, res, next) {
