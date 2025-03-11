@@ -126,6 +126,22 @@ router.post("/createCustomer", async function (req, res) {
   res.json(retVal);
 });
 
+// Fetch Customers
+router.get("/customers", async function (req, res) {
+  try {
+    const customers = await Clients.find().lean();
+    res.json({ customers });
+  } catch (err) {
+    console.error("Error fetching customers:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/* GET home page. */
+router.get("/", function (req, res, next) {
+  res.render("index", { title: "Express" });
+});
+
 // cRud   Should use GET . . . we'll fix this is Cloud next term
 // Retrieve Tickets
 router.post("/readTicket", async function (req, res) {
