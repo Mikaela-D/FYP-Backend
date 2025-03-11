@@ -71,30 +71,13 @@ router.get("/", async function (req, res, next) {
 // Create Ticket
 router.post("/createTicket", async function (req, res) {
   let retVal = { response: "fail" };
-  let {
-    customerId,
-    customerName,
-    customerPhone,
-    customerEmail,
-    ...ticketData
-  } = req.body;
+  let { customerId, ...ticketData } = req.body;
 
   try {
-    let customer;
+    let customer = await Customers.findById(customerId);
 
-    if (customerId) {
-      customer = await Customers.findById(customerId);
-    } else {
-      customer = await Customers.findOne({ customerEmail });
-
-      if (!customer) {
-        customer = await Customers.create({
-          customerId: new mongoose.Types.ObjectId().toString(), // Explicitly setting customerId
-          customerName,
-          customerPhone,
-          customerEmail,
-        });
-      }
+    if (!customer) {
+      throw new Error("Customer not found");
     }
 
     let ticket = await Tickets.create({
