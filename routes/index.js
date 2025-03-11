@@ -26,16 +26,7 @@ let customerSchema = new Schema(
   { collection: "customers" }
 );
 
-// Define Agent Schema
-const agentSchema = new Schema(
-  {
-    name: { type: String, required: true, unique: true },
-  },
-  { collection: "agents" }
-);
-
 let Customers = mongoose.model("customers", customerSchema);
-let Agents = mongoose.model("agents", agentSchema);
 
 // Admin server page
 router.get("/", async function (req, res, next) {
@@ -76,29 +67,6 @@ router.get("/customers", async function (req, res) {
     res.json({ customers });
   } catch (err) {
     console.error("Error fetching customers:", err);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Fetch Agents
-router.get("/agents", async (req, res) => {
-  try {
-    const agents = await Agents.find();
-    res.json(agents);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Fetch Single Agent by Name (for 'Assign to Me')
-router.get("/agents/by-name/:name", async (req, res) => {
-  try {
-    const agent = await Agents.findOne({ name: req.params.name });
-    if (!agent) {
-      return res.status(404).json({ error: "Agent not found" });
-    }
-    res.json(agent);
-  } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
