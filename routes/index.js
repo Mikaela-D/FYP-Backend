@@ -69,20 +69,33 @@ router.get("/", async function (req, res, next) {
 });
 
 // Create Ticket
+// Create Ticket
 router.post("/createTicket", async function (req, res) {
   let retVal = { response: "fail" };
-  let { customerName, customerPhone, customerEmail, ...ticketData } = req.body;
+  let {
+    customerId,
+    customerName,
+    customerPhone,
+    customerEmail,
+    ...ticketData
+  } = req.body;
 
   try {
-    let client = await Clients.findOne({ customerEmail });
+    let client;
 
-    if (!client) {
-      client = await Clients.create({
-        clientId: new mongoose.Types.ObjectId().toString(), // Explicitly setting clientId
-        customerName,
-        customerPhone,
-        customerEmail,
-      });
+    if (customerId) {
+      client = await Clients.findById(customerId);
+    } else {
+      client = await Clients.findOne({ customerEmail });
+
+      if (!client) {
+        client = await Clients.create({
+          clientId: new mongoose.Types.ObjectId().toString(), // Explicitly setting clientId
+          customerName,
+          customerPhone,
+          customerEmail,
+        });
+      }
     }
 
     let ticket = await Tickets.create({
