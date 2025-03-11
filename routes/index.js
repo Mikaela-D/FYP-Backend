@@ -99,26 +99,27 @@ router.post("/createTicket", async function (req, res) {
   res.json(retVal);
 });
 
-router.post("/createClient", async function (req, res) {
+// Create Customer
+router.post("/createCustomer", async function (req, res) {
   let retVal = { response: "fail" };
   let { customerName, customerPhone, customerEmail } = req.body;
 
   try {
-    let client = await Clients.findOne({ customerEmail });
+    let customer = await Clients.findOne({ customerEmail });
 
-    if (!client) {
-      client = await Clients.create({
+    if (!customer) {
+      customer = await Clients.create({
         clientId: new mongoose.Types.ObjectId().toString(), // Explicitly setting clientId
         customerName,
         customerPhone,
         customerEmail,
       });
-      retVal = { response: "success", clientId: client._id };
+      retVal = { response: "success", clientId: customer._id };
     } else {
-      retVal.error = "Client already exists";
+      retVal.error = "Customer already exists";
     }
   } catch (err) {
-    console.error("Error creating client:", err);
+    console.error("Error creating customer:", err);
     retVal.error = err.message;
   }
 
