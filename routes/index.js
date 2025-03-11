@@ -23,9 +23,9 @@ mongoose.connect("mongodb://127.0.0.1:27017/db", {
   useUnifiedTopology: true,
 });
 
-let clientSchema = new Schema(
+let customerSchema = new Schema(
   {
-    clientId: {
+    customerId: {
       type: String,
       default: () => new mongoose.Types.ObjectId().toString(),
     }, // Auto-generate if not provided
@@ -33,14 +33,14 @@ let clientSchema = new Schema(
     customerPhone: String,
     customerEmail: { type: String, unique: true },
   },
-  { collection: "clients" }
+  { collection: "customers" }
 );
 
 const ticketSchema = new Schema(
   {
     ticketId: { type: String, unique: true },
     title: String,
-    clientId: { type: Schema.Types.ObjectId, ref: "clients" },
+    customerId: { type: Schema.Types.ObjectId, ref: "customers" },
     category: String,
     priority: String,
     status: String,
@@ -59,7 +59,7 @@ const agentSchema = new Schema(
   { collection: "agents" }
 );
 
-let Clients = mongoose.model("clients", clientSchema);
+let Customers = mongoose.model("customers", customerSchema);
 let Tickets = mongoose.model("tickets", ticketSchema);
 let Agents = mongoose.model("agents", agentSchema);
 
@@ -68,7 +68,6 @@ router.get("/", async function (req, res, next) {
   res.render("index");
 });
 
-// Create Ticket
 // Create Ticket
 router.post("/createTicket", async function (req, res) {
   let retVal = { response: "fail" };
@@ -81,16 +80,16 @@ router.post("/createTicket", async function (req, res) {
   } = req.body;
 
   try {
-    let client;
+    let customer;
 
     if (customerId) {
-      client = await Clients.findById(customerId);
+      customer = await Customers.findById(customerId);
     } else {
-      client = await Clients.findOne({ customerEmail });
+      customer = await Customers.findOne({ customerEmail });
 
-      if (!client) {
-        client = await Clients.create({
-          clientId: new mongoose.Types.ObjectId().toString(), // Explicitly setting clientId
+      if (!customer) {
+        customer = await Customers.create({
+          customerId: new mongoose.Types.ObjectId().toString(), // Explicitly setting customerId
           customerName,
           customerPhone,
           customerEmail,
@@ -100,7 +99,7 @@ router.post("/createTicket", async function (req, res) {
 
     let ticket = await Tickets.create({
       ...ticketData,
-      clientId: client._id, // Ensuring ObjectId reference
+      customerId: customer._id, // Ensuring ObjectId reference
     });
 
     retVal = { response: "success", ticketId: ticket._id };
@@ -118,16 +117,16 @@ router.post("/createCustomer", async function (req, res) {
   let { customerName, customerPhone, customerEmail } = req.body;
 
   try {
-    let customer = await Clients.findOne({ customerEmail });
+    let customer = await Customers.findOne({ customerEmail });
 
     if (!customer) {
-      customer = await Clients.create({
-        clientId: new mongoose.Types.ObjectId().toString(), // Explicitly setting clientId
+      customer = await Customers.create({
+        customerId: new mongoose.Types.ObjectId().toString(), // Explicitly setting customerId
         customerName,
         customerPhone,
         customerEmail,
       });
-      retVal = { response: "success", clientId: customer._id };
+      retVal = { response: "success", customerId: customer._id };
     } else {
       retVal.error = "Customer already exists";
     }
@@ -142,7 +141,7 @@ router.post("/createCustomer", async function (req, res) {
 // Fetch Customers
 router.get("/customers", async function (req, res) {
   try {
-    const customers = await Clients.find().lean();
+    const customers = await Customers.find().lean();
     res.json({ customers });
   } catch (err) {
     console.error("Error fetching customers:", err);
@@ -162,11 +161,11 @@ router.post("/readTicket", async function (req, res) {
     let data =
       req.body.cmd === "all"
         ? await Tickets.find()
-            .populate("clientId")
+            .populate("customerId")
             .populate("assignedTo")
             .lean()
         : await Tickets.findOne({ _id: req.body._id })
-            .populate("clientId")
+            .populate("customerId")
             .populate("assignedTo")
             .lean();
     // Ensure customer details are properly extracted
@@ -174,17 +173,17 @@ router.post("/readTicket", async function (req, res) {
       if (Array.isArray(data)) {
         data = data.map((ticket) => ({
           ...ticket,
-          customerName: ticket.clientId?.customerName || "N/A",
-          customerPhone: ticket.clientId?.customerPhone || "N/A",
-          customerEmail: ticket.clientId?.customerEmail || "N/A",
+          customerName: ticket.customerId?.customerName || "N/A",
+          customerPhone: ticket.customerId?.customerPhone || "N/A",
+          customerEmail: ticket.customerId?.customerEmail || "N/A",
           assignedTo: ticket.assignedTo
             ? ticket.assignedTo._id.toString()
             : "Unassigned",
         }));
       } else {
-        data.customerName = data.clientId?.customerName || "N/A";
-        data.customerPhone = data.clientId?.customerPhone || "N/A";
-        data.customerEmail = data.clientId?.customerEmail || "N/A";
+        data.customerName = data.customerId?.customerName || "N/A";
+        data.customerPhone = data.customerId?.customerPhone || "N/A";
+        data.customerEmail = data.customerId?.customerEmail || "N/A";
         data.assignedTo = data.assignedTo
           ? data.assignedTo._id.toString()
           : "Unassigned";
@@ -330,14 +329,14 @@ router.get("/tickets/by-agent/:name", async (req, res) => {
     }
 
     const tickets = await Tickets.find({ assignedTo: agent._id })
-      .populate("clientId")
+      .populate("customerId")
       .lean();
 
     const formattedTickets = tickets.map((ticket) => ({
       ...ticket,
-      customerName: ticket.clientId?.customerName || "N/A",
-      customerPhone: ticket.clientId?.customerPhone || "N/A",
-      customerEmail: ticket.clientId?.customerEmail || "N/A",
+      customerName: ticket.customerId?.customerName || "N/A",
+      customerPhone: ticket.customerId?.customerPhone || "N/A",
+      customerEmail: ticket.customerId?.customerEmail || "N/A",
     }));
 
     res.json({ tickets: formattedTickets });
@@ -368,7 +367,7 @@ router.post("/sendMessage", async (req, res) => {
         {
           role: "system",
           content:
-            "You are a client needing product support for your mobile device and you are contacting an agent that will help you.",
+            "You are a customer needing product support for your mobile device and you are contacting an agent that will help you.",
         },
         { role: "user", content: message },
       ],
