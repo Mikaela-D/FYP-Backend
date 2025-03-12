@@ -99,6 +99,28 @@ router.post("/createTicket", async function (req, res) {
   res.json(retVal);
 });
 
+// Create Client
+router.post("/createClient", async function (req, res) {
+  let retVal = { response: "fail" };
+  let { customerName, customerPhone, customerEmail } = req.body;
+
+  try {
+    let client = await Clients.create({
+      clientId: new mongoose.Types.ObjectId().toString(), // Explicitly setting clientId
+      customerName,
+      customerPhone,
+      customerEmail,
+    });
+
+    retVal = { response: "success", clientId: client._id };
+  } catch (err) {
+    console.error("Error creating client:", err);
+    retVal.error = err.message;
+  }
+
+  res.json(retVal);
+});
+
 // cRud   Should use GET . . . we'll fix this is Cloud next term
 // Retrieve Tickets
 router.post("/readTicket", async function (req, res) {
