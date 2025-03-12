@@ -12,7 +12,7 @@ const openai = new OpenAI({
 });
 
 let dailyUsage = 0;
-const DAILY_LIMIT = 100; // Limit AI interactions to 100 per day
+const DAILY_LIMIT = 200; // Limit AI interactions
 
 // Send Message and Get AI Response
 router.post("/sendMessage", async (req, res) => {
