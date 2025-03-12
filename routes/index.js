@@ -105,14 +105,20 @@ router.post("/createClient", async function (req, res) {
   let { customerName, customerPhone, customerEmail } = req.body;
 
   try {
-    let client = await Clients.create({
-      clientId: new mongoose.Types.ObjectId().toString(), // Explicitly setting clientId
-      customerName,
-      customerPhone,
-      customerEmail,
-    });
+    let existingClient = await Clients.findOne({ customerEmail });
 
-    retVal = { response: "success", clientId: client._id };
+    if (existingClient) {
+      retVal.error = "Client with this email already exists.";
+    } else {
+      let client = await Clients.create({
+        clientId: new mongoose.Types.ObjectId().toString(), // Explicitly setting clientId
+        customerName,
+        customerPhone,
+        customerEmail,
+      });
+
+      retVal = { response: "success", clientId: client._id };
+    }
   } catch (err) {
     console.error("Error creating client:", err);
     retVal.error = err.message;
