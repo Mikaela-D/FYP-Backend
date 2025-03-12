@@ -87,6 +87,11 @@ router.post("/createTicket", async function (req, res) {
   let retVal = { response: "fail" };
   let { customerId, ...ticketData } = req.body;
 
+  if (!mongoose.Types.ObjectId.isValid(customerId)) {
+    retVal.error = "Invalid customerId";
+    return res.json(retVal);
+  }
+
   try {
     let customer = await Customers.findById(customerId);
 
