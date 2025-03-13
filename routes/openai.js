@@ -5,6 +5,17 @@ let express = require("express");
 let router = express.Router();
 const OpenAI = require("openai");
 
+// Initialize session middleware
+const session = require("express-session");
+router.use(
+  session({
+    secret: "your-secret-key",
+    resave: false,
+    saveUninitialized: true,
+    cookie: { secure: false }, // Set to true if using HTTPS
+  })
+);
+
 console.log("OpenAI module loaded successfully");
 
 const openai = new OpenAI({
@@ -28,17 +39,24 @@ router.post("/sendMessage", async (req, res) => {
     return res.status(429).json({ error: "Daily usage limit reached" });
   }
 
+  // Initialize conversation history if not present
+  if (!req.session.conversation) {
+    req.session.conversation = [
+      {
+        role: "system",
+        content:
+          "You are a customer needing product support for your mobile device and you are contacting an agent that will help you.",
+      },
+    ];
+  }
+
+  // Add user message to conversation history
+  req.session.conversation.push({ role: "user", content: message });
+
   try {
     const response = await openai.chat.completions.create({
       model: "gpt-3.5-turbo",
-      messages: [
-        {
-          role: "system",
-          content:
-            "You are a customer needing product support for your mobile device and you are contacting an agent that will help you.",
-        },
-        { role: "user", content: message },
-      ],
+      messages: req.session.conversation,
       max_tokens: 150,
     });
 
@@ -47,6 +65,9 @@ router.post("/sendMessage", async (req, res) => {
     const aiReply =
       response.choices[0]?.message?.content?.trim() || "No response";
     dailyUsage += response.usage?.total_tokens || 0;
+
+    // Add AI response to conversation history
+    req.session.conversation.push({ role: "assistant", content: aiReply });
 
     res.json({ reply: aiReply });
   } catch (error) {
