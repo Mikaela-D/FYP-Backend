@@ -33,6 +33,7 @@ const messageSchema = new Schema(
     role: String,
     content: String,
     timestamp: { type: Date, default: Date.now },
+    customerId: { type: Schema.Types.ObjectId, ref: "customers" }, // Add customerId field
   },
   { collection: "messages" }
 );
@@ -43,7 +44,7 @@ let Messages = mongoose.model("messages", messageSchema);
 router.post("/sendMessage", async (req, res) => {
   console.log("Received request:", req.body); // Debugging log
 
-  const { message, conversation } = req.body;
+  const { message, conversation, customerId } = req.body;
 
   if (!message) {
     return res.status(400).json({ error: "Message is required" });
@@ -92,11 +93,11 @@ router.post("/sendMessage", async (req, res) => {
     // Update session conversation history
     req.session.conversation = conversationHistory;
 
-    // Save user message to database
+    // Save user message to database without customerId
     await Messages.create({ role: "user", content: message });
 
-    // Save AI response to database
-    await Messages.create({ role: "assistant", content: aiReply });
+    // Save AI response to database with customerId
+    await Messages.create({ role: "assistant", content: aiReply, customerId });
 
     res.json({ reply: aiReply });
   } catch (error) {
