@@ -4,6 +4,8 @@ require("dotenv").config();
 let express = require("express");
 let router = express.Router();
 const OpenAI = require("openai");
+const mongoose = require("mongoose");
+const Schema = mongoose.Schema;
 
 // Initialize session middleware
 const session = require("express-session");
@@ -24,6 +26,18 @@ const openai = new OpenAI({
 
 let dailyUsage = 0;
 const DAILY_LIMIT = 1000; // Limit AI interactions
+
+// Define Message Schema
+const messageSchema = new Schema(
+  {
+    role: String,
+    content: String,
+    timestamp: { type: Date, default: Date.now },
+  },
+  { collection: "messages" }
+);
+
+let Messages = mongoose.model("messages", messageSchema);
 
 // Send Message and Get AI Response
 router.post("/sendMessage", async (req, res) => {
@@ -77,6 +91,12 @@ router.post("/sendMessage", async (req, res) => {
 
     // Update session conversation history
     req.session.conversation = conversationHistory;
+
+    // Save user message to database
+    await Messages.create({ role: "user", content: message });
+
+    // Save AI response to database
+    await Messages.create({ role: "assistant", content: aiReply });
 
     res.json({ reply: aiReply });
   } catch (error) {
