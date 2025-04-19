@@ -1,5 +1,4 @@
 // C:\Users\Mikaela\FYP-Backend\routes\openai.js
-// I'm back!
 
 require("dotenv").config();
 let express = require("express");
