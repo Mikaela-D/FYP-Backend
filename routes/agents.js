@@ -46,7 +46,6 @@ router.get("/agents/by-name/:name", async (req, res) => {
   }
 });
 
-// Register a New Agent
 router.post("/agents/register", async (req, res) => {
   const { name, password } = req.body;
 
@@ -57,6 +56,13 @@ router.post("/agents/register", async (req, res) => {
       return res
         .status(400)
         .json({ success: false, message: "Agent already exists" });
+    }
+
+    // Ensure both name and password are provided
+    if (!name || !password) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Name and password are required" });
     }
 
     // Hash the password
