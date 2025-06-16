@@ -103,7 +103,7 @@ router.post("/agents/login", async (req, res) => {
         .json({ success: false, message: "Invalid credentials" });
     }
 
-    res.status(200).json({ success: true, message: "Login successful" });
+    res.status(200).json({ success: true, agent });
   } catch (err) {
     console.error("Error logging in agent:", err);
     res.status(500).json({ success: false, message: "Failed to log in agent" });
