@@ -256,17 +256,23 @@ router.put("/tickets/:id/assign", async (req, res) => {
 });
 
 // Fetch Tickets by Agent Name
+// Debugging code for the backend route (not part of the frontend API handler)
 router.get("/tickets/by-agent/:name", async (req, res) => {
+  console.log("Fetching tickets for agent:", req.params.name); // Debugging line
+
   try {
     const agent = await Agents.findOne({ name: req.params.name });
 
     if (!agent) {
+      console.error("Agent not found:", req.params.name); // Debugging line
       return res.status(404).json({ error: "Agent not found" });
     }
 
     const tickets = await Tickets.find({ assignedTo: agent._id })
       .populate("customerId")
       .lean();
+
+    console.log("Fetched tickets:", tickets); // Debugging line
 
     const formattedTickets = tickets.map((ticket) => ({
       ...ticket,
