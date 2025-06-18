@@ -106,4 +106,26 @@ router.post("/sendMessage", async (req, res) => {
   }
 });
 
+
+
+
+// Get conversation history for a customer
+router.get("/messages/:customerId", async (req, res) => {
+  const { customerId } = req.params;
+  if (!customerId) {
+    return res.status(400).json({ error: "customerId is required" });
+  }
+
+  try {
+    // Find all messages for this customer, sorted by timestamp
+    const messages = await Messages.find({ customerId })
+      .sort({ timestamp: 1 })
+      .lean();
+    res.json({ messages });
+  } catch (err) {
+    console.error("Error fetching messages:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
