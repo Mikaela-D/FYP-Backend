@@ -106,8 +106,32 @@ router.post("/sendMessage", async (req, res) => {
   }
 });
 
+// Send Message and Get AI Response
+router.post("/sendMessage", async (req, res) => {
+  const { message, customerId } = req.body;
 
+  if (!message || !customerId) {
+    return res
+      .status(400)
+      .json({ error: "Message and customerId are required" });
+  }
 
+  try {
+    // Here should be the code that sends the message to the AI and gets the response
+    const aiReply = "AI response to: " + message; // Placeholder
+
+    // Save user message to database WITH customerId (fix is here)
+    await Messages.create({ role: "user", content: message, customerId }); // <-- FIXED
+
+    // Save AI response to database with customerId
+    await Messages.create({ role: "assistant", content: aiReply, customerId }); // <-- FIXED
+
+    res.json({ reply: aiReply });
+  } catch (error) {
+    console.error("Error sending message:", error);
+    res.status(500).json({ error: "Failed to send message" });
+  }
+});
 
 // Get conversation history for a customer
 router.get("/messages/:customerId", async (req, res) => {
@@ -117,10 +141,34 @@ router.get("/messages/:customerId", async (req, res) => {
   }
 
   try {
+    console.log("DEBUG: Looking for messages with customerId:", customerId);
+
+    // Show all messages in the database for debugging
+    const allMessages = await Messages.find({}).lean();
+    console.log("DEBUG: All messages in DB:", allMessages);
+
     // Find all messages for this customer, sorted by timestamp
-    const messages = await Messages.find({ customerId })
-      .sort({ timestamp: 1 })
-      .lean();
+    const query = {
+      $or: [
+        { customerId: customerId },
+        {
+          customerId: mongoose.Types.ObjectId.isValid(customerId)
+            ? new mongoose.Types.ObjectId(customerId)
+            : undefined,
+        },
+      ],
+    };
+    console.log("DEBUG: Query being used:", query);
+
+    const messages = await Messages.find(query).sort({ timestamp: 1 }).lean();
+
+    console.log(
+      "DEBUG: Fetched messages for customerId",
+      customerId,
+      ":",
+      messages
+    );
+
     res.json({ messages });
   } catch (err) {
     console.error("Error fetching messages:", err);
