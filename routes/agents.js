@@ -4,6 +4,7 @@ let express = require("express");
 let router = express.Router();
 let mongoose = require("mongoose");
 let Schema = mongoose.Schema;
+const bcrypt = require("bcrypt");
 
 // Use the default mongoose instance
 mongoose.connect("mongodb://127.0.0.1:27017/db", {
@@ -15,6 +16,7 @@ mongoose.connect("mongodb://127.0.0.1:27017/db", {
 const agentSchema = new Schema(
   {
     name: { type: String, required: true, unique: true },
+    password: { type: String, required: true },
   },
   { collection: "agents" }
 );
@@ -41,6 +43,70 @@ router.get("/agents/by-name/:name", async (req, res) => {
     res.json(agent);
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+router.post("/agents/register", async (req, res) => {
+  const { name, password } = req.body;
+
+  try {
+    // Check if agent already exists
+    const existingAgent = await Agents.findOne({ name });
+    if (existingAgent) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Agent already exists" });
+    }
+
+    // Ensure both name and password are provided
+    if (!name || !password) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Name and password are required" });
+    }
+
+    // Hash the password
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Create and save the new agent
+    const newAgent = new Agents({ name, password: hashedPassword });
+    await newAgent.save();
+
+    res
+      .status(201)
+      .json({ success: true, message: "Agent registered successfully" });
+  } catch (err) {
+    console.error("Error registering agent:", err);
+    res
+      .status(500)
+      .json({ success: false, message: "Failed to register agent" });
+  }
+});
+
+router.post("/agents/login", async (req, res) => {
+  const { name, password } = req.body;
+
+  try {
+    // Find the agent by name
+    const agent = await Agents.findOne({ name });
+    if (!agent) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Agent not found" });
+    }
+
+    // Compare the provided password with the hashed password
+    const isPasswordValid = await bcrypt.compare(password, agent.password);
+    if (!isPasswordValid) {
+      return res
+        .status(401)
+        .json({ success: false, message: "Invalid credentials" });
+    }
+
+    res.status(200).json({ success: true, agent });
+  } catch (err) {
+    console.error("Error logging in agent:", err);
+    res.status(500).json({ success: false, message: "Failed to log in agent" });
   }
 });
 

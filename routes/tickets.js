@@ -256,17 +256,23 @@ router.put("/tickets/:id/assign", async (req, res) => {
 });
 
 // Fetch Tickets by Agent Name
+// Debugging code for the backend route (not part of the frontend API handler)
 router.get("/tickets/by-agent/:name", async (req, res) => {
+  console.log("Fetching tickets for agent:", req.params.name); // Debugging line
+
   try {
     const agent = await Agents.findOne({ name: req.params.name });
 
     if (!agent) {
+      console.error("Agent not found:", req.params.name); // Debugging line
       return res.status(404).json({ error: "Agent not found" });
     }
 
     const tickets = await Tickets.find({ assignedTo: agent._id })
       .populate("customerId")
       .lean();
+
+    console.log("Fetched tickets:", tickets); // Debugging line
 
     const formattedTickets = tickets.map((ticket) => ({
       ...ticket,
@@ -278,6 +284,69 @@ router.get("/tickets/by-agent/:name", async (req, res) => {
     res.json({ tickets: formattedTickets });
   } catch (err) {
     console.error("Error fetching tickets for agent:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get("/tickets/by-agent-id/:agentId", async (req, res) => {
+  console.log("Fetching tickets for agent ID:", req.params.agentId); // Debugging line
+
+  try {
+    const agentId = req.params.agentId;
+
+    if (!mongoose.Types.ObjectId.isValid(agentId)) {
+      console.error("Invalid agent ID:", agentId); // Debugging line
+      return res.status(400).json({ error: "Invalid agent ID format" });
+    }
+
+    const tickets = await Tickets.find({ assignedTo: agentId })
+      .populate("customerId")
+      .lean();
+
+    console.log("Fetched tickets:", tickets); // Debugging line
+
+    const formattedTickets = tickets.map((ticket) => ({
+      ...ticket,
+      customerName: ticket.customerId?.customerName || "N/A",
+      customerPhone: ticket.customerId?.customerPhone || "N/A",
+      customerEmail: ticket.customerId?.customerEmail || "N/A",
+    }));
+
+    res.json({ tickets: formattedTickets });
+  } catch (err) {
+    console.error("Error fetching tickets for agent ID:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// This works for getting the Agent's Tickets
+router.get("/by-agent-id/:agentId", async (req, res) => {
+  console.log("Fetching tickets for agent ID:", req.params.agentId); // Debugging line
+
+  try {
+    const agentId = req.params.agentId;
+
+    if (!mongoose.Types.ObjectId.isValid(agentId)) {
+      console.error("Invalid agent ID:", agentId); // Debugging line
+      return res.status(400).json({ error: "Invalid agent ID format" });
+    }
+
+    const tickets = await Tickets.find({ assignedTo: agentId })
+      .populate("customerId")
+      .lean();
+
+    console.log("Fetched tickets:", tickets); // Debugging line
+
+    const formattedTickets = tickets.map((ticket) => ({
+      ...ticket,
+      customerName: ticket.customerId?.customerName || "N/A",
+      customerPhone: ticket.customerId?.customerPhone || "N/A",
+      customerEmail: ticket.customerId?.customerEmail || "N/A",
+    }));
+
+    res.json({ tickets: formattedTickets });
+  } catch (err) {
+    console.error("Error fetching tickets for agent ID:", err);
     res.status(500).json({ error: err.message });
   }
 });
