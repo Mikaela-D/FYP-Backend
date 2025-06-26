@@ -50,23 +50,36 @@ router.post("/sendMessage", async (req, res) => {
     return res.status(400).json({ error: "Message is required" });
   }
 
+  // Validate customerId
+  if (!customerId) {
+    return res.status(400).json({ error: "customerId is required" });
+  }
+
   if (dailyUsage >= DAILY_LIMIT) {
     return res.status(429).json({ error: "Daily usage limit reached" });
   }
 
-  // Initialize conversation history if not present
-  if (!req.session.conversation) {
-    req.session.conversation = [
-      {
-        role: "system",
-        content:
-          "You are a customer needing product support for your mobile device and you are contacting an agent that will help you.",
-      },
-    ];
-  }
+  // Always ensure the system prompt is the first message
+  const systemPrompt = {
+    role: "system",
+    content:
+      "You are a customer needing product support for your mobile device and you are contacting an agent that will help you.",
+  };
 
-  // Use the conversation history from the request if provided
-  const conversationHistory = conversation || req.session.conversation;
+  let conversationHistory = [];
+  if (conversation && Array.isArray(conversation)) {
+    // Remove any existing system prompt from frontend
+    const filtered = conversation.filter((msg) => msg.role !== "system");
+    conversationHistory = [systemPrompt, ...filtered];
+  } else if (req.session.conversation) {
+    // Remove any duplicate system prompt
+    const filtered = req.session.conversation.filter(
+      (msg) => msg.role !== "system"
+    );
+    conversationHistory = [systemPrompt, ...filtered];
+  } else {
+    conversationHistory = [systemPrompt];
+  }
 
   // Add user message to conversation history with explicit role
   conversationHistory.push({ role: "user", content: `Agent: ${message}` });
@@ -93,43 +106,24 @@ router.post("/sendMessage", async (req, res) => {
     // Update session conversation history
     req.session.conversation = conversationHistory;
 
-    // Save user message to database without customerId
-    await Messages.create({ role: "user", content: message });
+    // Save user message to database with customerId
+    await Messages.create({
+      role: "user",
+      content: `Agent: ${message}`,
+      customerId: new mongoose.Types.ObjectId(customerId),
+    });
 
     // Save AI response to database with customerId
-    await Messages.create({ role: "assistant", content: aiReply, customerId });
+    await Messages.create({
+      role: "assistant",
+      content: `Customer: ${aiReply}`,
+      customerId: new mongoose.Types.ObjectId(customerId),
+    });
 
     res.json({ reply: aiReply });
   } catch (error) {
     console.error("Error generating AI response:", error);
     res.status(500).json({ error: error.message });
-  }
-});
-
-// Send Message and Get AI Response
-router.post("/sendMessage", async (req, res) => {
-  const { message, customerId } = req.body;
-
-  if (!message || !customerId) {
-    return res
-      .status(400)
-      .json({ error: "Message and customerId are required" });
-  }
-
-  try {
-    // Here should be the code that sends the message to the AI and gets the response
-    const aiReply = "AI response to: " + message; // Placeholder
-
-    // Save user message to database WITH customerId (fix is here)
-    await Messages.create({ role: "user", content: message, customerId }); // <-- FIXED
-
-    // Save AI response to database with customerId
-    await Messages.create({ role: "assistant", content: aiReply, customerId }); // <-- FIXED
-
-    res.json({ reply: aiReply });
-  } catch (error) {
-    console.error("Error sending message:", error);
-    res.status(500).json({ error: "Failed to send message" });
   }
 });
 
@@ -149,14 +143,7 @@ router.get("/messages/:customerId", async (req, res) => {
 
     // Find all messages for this customer, sorted by timestamp
     const query = {
-      $or: [
-        { customerId: customerId },
-        {
-          customerId: mongoose.Types.ObjectId.isValid(customerId)
-            ? new mongoose.Types.ObjectId(customerId)
-            : undefined,
-        },
-      ],
+      customerId: new mongoose.Types.ObjectId(customerId),
     };
     console.log("DEBUG: Query being used:", query);
 
