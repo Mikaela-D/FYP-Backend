@@ -7,6 +7,9 @@ const OpenAI = require("openai");
 const mongoose = require("mongoose");
 const Schema = mongoose.Schema;
 
+// Import Customers model for persona lookup
+const Customers = mongoose.model("customers");
+
 // Initialize session middleware
 const session = require("express-session");
 router.use(
@@ -59,18 +62,48 @@ router.post("/sendMessage", async (req, res) => {
     return res.status(429).json({ error: "Daily usage limit reached" });
   }
 
+  // Fetch customer persona (persona is now required, no fallback)
+  let personaPrompt = "";
+  try {
+    const customer = await Customers.findById(customerId).lean();
+    if (customer && customer.persona && customer.persona.trim()) {
+      personaPrompt = customer.persona.trim();
+    } else {
+      return res
+        .status(400)
+        .json({ error: "No persona found for this customer." });
+    }
+  } catch (err) {
+    console.error("Error fetching customer persona:", err);
+    return res.status(500).json({ error: "Failed to fetch customer persona." });
+  }
+
   // Always ensure the system prompt is the first message
   const systemPrompt = {
     role: "system",
-    content:
-      "You are a customer needing product support for your mobile device and you are contacting an agent that will help you.",
+    content: personaPrompt,
   };
 
   let conversationHistory = [];
   if (conversation && Array.isArray(conversation)) {
-    // Remove any existing system prompt from frontend
-    const filtered = conversation.filter((msg) => msg.role !== "system");
-    conversationHistory = [systemPrompt, ...filtered];
+    // Map frontend messages to OpenAI format, skip any without sender/text
+    const mapped = conversation
+      .filter(
+        (msg) =>
+          msg && typeof msg.sender === "string" && typeof msg.text === "string"
+      )
+      .map((msg) => {
+        if (msg.sender === "agent") {
+          return { role: "user", content: `Agent: ${msg.text}` };
+        } else if (msg.sender === "customer") {
+          return { role: "assistant", content: `Customer: ${msg.text}` };
+        } else {
+          // fallback: skip
+          return null;
+        }
+      })
+      .filter(Boolean);
+    conversationHistory = [systemPrompt, ...mapped];
   } else if (req.session.conversation) {
     // Remove any duplicate system prompt
     const filtered = req.session.conversation.filter(
