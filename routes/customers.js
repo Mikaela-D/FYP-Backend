@@ -20,6 +20,7 @@ let customerSchema = new Schema(
     customerName: String,
     customerPhone: String,
     customerEmail: { type: String, unique: true },
+    persona: { type: String, default: "" },
   },
   { collection: "customers" }
 );
@@ -29,7 +30,7 @@ let Customers = mongoose.model("customers", customerSchema);
 // Create Customer
 router.post("/createCustomer", async function (req, res) {
   let retVal = { response: "fail" };
-  let { customerName, customerPhone, customerEmail } = req.body;
+  let { customerName, customerPhone, customerEmail, persona } = req.body;
 
   try {
     let customer = await Customers.findOne({ customerEmail });
@@ -40,10 +41,22 @@ router.post("/createCustomer", async function (req, res) {
         customerName,
         customerPhone,
         customerEmail,
+        persona,
       });
       retVal = { response: "success", customerId: customer._id };
     } else {
-      retVal.error = "Customer already exists";
+      // Update persona if provided
+      if (persona && persona.trim()) {
+        customer.persona = persona;
+        await customer.save();
+        retVal = {
+          response: "success",
+          customerId: customer._id,
+          updated: true,
+        };
+      } else {
+        retVal.error = "Customer already exists";
+      }
     }
   } catch (err) {
     console.error("Error creating customer:", err);
