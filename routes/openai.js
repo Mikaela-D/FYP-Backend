@@ -7,6 +7,9 @@ const OpenAI = require("openai");
 const mongoose = require("mongoose");
 const Schema = mongoose.Schema;
 
+// Import Customers model for persona lookup
+const Customers = mongoose.model("customers");
+
 // Initialize session middleware
 const session = require("express-session");
 router.use(
@@ -50,23 +53,66 @@ router.post("/sendMessage", async (req, res) => {
     return res.status(400).json({ error: "Message is required" });
   }
 
+  // Validate customerId
+  if (!customerId) {
+    return res.status(400).json({ error: "customerId is required" });
+  }
+
   if (dailyUsage >= DAILY_LIMIT) {
     return res.status(429).json({ error: "Daily usage limit reached" });
   }
 
-  // Initialize conversation history if not present
-  if (!req.session.conversation) {
-    req.session.conversation = [
-      {
-        role: "system",
-        content:
-          "You are a customer needing product support for your mobile device and you are contacting an agent that will help you.",
-      },
-    ];
+  // Fetch customer persona (persona is now required, no fallback)
+  let personaPrompt = "";
+  try {
+    const customer = await Customers.findById(customerId).lean();
+    if (customer && customer.persona && customer.persona.trim()) {
+      personaPrompt = customer.persona.trim();
+    } else {
+      return res
+        .status(400)
+        .json({ error: "No persona found for this customer." });
+    }
+  } catch (err) {
+    console.error("Error fetching customer persona:", err);
+    return res.status(500).json({ error: "Failed to fetch customer persona." });
   }
 
-  // Use the conversation history from the request if provided
-  const conversationHistory = conversation || req.session.conversation;
+  // Always ensure the system prompt is the first message
+  const systemPrompt = {
+    role: "system",
+    content: personaPrompt,
+  };
+
+  let conversationHistory = [];
+  if (conversation && Array.isArray(conversation)) {
+    // Map frontend messages to OpenAI format, skip any without sender/text
+    const mapped = conversation
+      .filter(
+        (msg) =>
+          msg && typeof msg.sender === "string" && typeof msg.text === "string"
+      )
+      .map((msg) => {
+        if (msg.sender === "agent") {
+          return { role: "user", content: `Agent: ${msg.text}` };
+        } else if (msg.sender === "customer") {
+          return { role: "assistant", content: `Customer: ${msg.text}` };
+        } else {
+          // fallback: skip
+          return null;
+        }
+      })
+      .filter(Boolean);
+    conversationHistory = [systemPrompt, ...mapped];
+  } else if (req.session.conversation) {
+    // Remove any duplicate system prompt
+    const filtered = req.session.conversation.filter(
+      (msg) => msg.role !== "system"
+    );
+    conversationHistory = [systemPrompt, ...filtered];
+  } else {
+    conversationHistory = [systemPrompt];
+  }
 
   // Add user message to conversation history with explicit role
   conversationHistory.push({ role: "user", content: `Agent: ${message}` });
@@ -93,16 +139,60 @@ router.post("/sendMessage", async (req, res) => {
     // Update session conversation history
     req.session.conversation = conversationHistory;
 
-    // Save user message to database without customerId
-    await Messages.create({ role: "user", content: message });
+    // Save user message to database with customerId
+    await Messages.create({
+      role: "user",
+      content: `Agent: ${message}`,
+      customerId: new mongoose.Types.ObjectId(customerId),
+    });
 
     // Save AI response to database with customerId
-    await Messages.create({ role: "assistant", content: aiReply, customerId });
+    await Messages.create({
+      role: "assistant",
+      content: `Customer: ${aiReply}`,
+      customerId: new mongoose.Types.ObjectId(customerId),
+    });
 
     res.json({ reply: aiReply });
   } catch (error) {
     console.error("Error generating AI response:", error);
     res.status(500).json({ error: error.message });
+  }
+});
+
+// Get conversation history for a customer
+router.get("/messages/:customerId", async (req, res) => {
+  const { customerId } = req.params;
+  if (!customerId) {
+    return res.status(400).json({ error: "customerId is required" });
+  }
+
+  try {
+    console.log("DEBUG: Looking for messages with customerId:", customerId);
+
+    // Show all messages in the database for debugging
+    const allMessages = await Messages.find({}).lean();
+    console.log("DEBUG: All messages in DB:", allMessages);
+
+    // Find all messages for this customer, sorted by timestamp
+    const query = {
+      customerId: new mongoose.Types.ObjectId(customerId),
+    };
+    console.log("DEBUG: Query being used:", query);
+
+    const messages = await Messages.find(query).sort({ timestamp: 1 }).lean();
+
+    console.log(
+      "DEBUG: Fetched messages for customerId",
+      customerId,
+      ":",
+      messages
+    );
+
+    res.json({ messages });
+  } catch (err) {
+    console.error("Error fetching messages:", err);
+    res.status(500).json({ error: err.message });
   }
 });
 
