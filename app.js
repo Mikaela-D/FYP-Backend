@@ -11,6 +11,7 @@ var indexRouter = require("./routes/index");
 var ticketsRouter = require("./routes/tickets");
 var openaiRouter = require("./routes/openai");
 var agentsRouter = require("./routes/agents");
+var callsRouter = require("./routes/calls");
 var hbs = require("express-handlebars");
 
 var app = express();
@@ -41,6 +42,7 @@ app.use("/", indexRouter);
 app.use("/tickets", ticketsRouter);
 app.use("/openai", openaiRouter);
 app.use("/agents", agentsRouter);
+app.use("/calls", callsRouter);
 
 // catch 404 and forward to error handler
 app.use(function (req, res, next) {
