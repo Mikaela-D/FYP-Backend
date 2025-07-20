@@ -41,10 +41,26 @@ router.post("/", async function (req, res) {
   res.json(retVal);
 });
 
-// (Optional) Fetch all calls
+// // (Optional) Fetch all calls
+// router.get("/", async function (req, res) {
+//   try {
+//     const calls = await Calls.find().lean();
+//     res.json({ calls });
+//   } catch (err) {
+//     console.error("Error fetching calls:", err);
+//     res.status(500).json({ error: err.message });
+//   }
+// });
+
+// Fetch calls for a specific agent
 router.get("/", async function (req, res) {
   try {
-    const calls = await Calls.find().lean();
+    const { agentId } = req.query;
+    let query = {};
+    if (agentId) {
+      query.agentId = agentId;
+    }
+    const calls = await Calls.find(query).lean();
     res.json({ calls });
   } catch (err) {
     console.error("Error fetching calls:", err);
