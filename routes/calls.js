@@ -41,17 +41,6 @@ router.post("/", async function (req, res) {
   res.json(retVal);
 });
 
-// // (Optional) Fetch all calls
-// router.get("/", async function (req, res) {
-//   try {
-//     const calls = await Calls.find().lean();
-//     res.json({ calls });
-//   } catch (err) {
-//     console.error("Error fetching calls:", err);
-//     res.status(500).json({ error: err.message });
-//   }
-// });
-
 // Fetch calls for a specific agent
 router.get("/", async function (req, res) {
   try {
@@ -67,5 +56,16 @@ router.get("/", async function (req, res) {
     res.status(500).json({ error: err.message });
   }
 });
+
+// // (Optional) Fetch all calls
+// router.get("/", async function (req, res) {
+//   try {
+//     const calls = await Calls.find().lean();
+//     res.json({ calls });
+//   } catch (err) {
+//     console.error("Error fetching calls:", err);
+//     res.status(500).json({ error: err.message });
+//   }
+// });
 
 module.exports = router;
